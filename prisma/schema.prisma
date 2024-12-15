@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
+}
+
+model StaffAccount {
+  id       Int    @id @default(autoincrement())
+  staffId  String @unique
+  password String
+
+  profile StaffProfile @relation(fields: [staffId], references: [staffId], onDelete: Cascade)
+}
+
+model StaffProfile {
+  id          Int      @id @default(autoincrement())
+  staffId     String   @unique
+  name        String
+  romanname   String
+  address     String
+  postcode    String
+  phonenumber String
+  email       String   @unique
+  birthday    DateTime
+  hiredate    DateTime
+  role        String
+
+  emergencyContact EmergencyContact[]
+  ngStaffs         NGStaff[]            @relation("NGStaffRelation")
+  qualifications   StaffQualification[]
+
+  account       StaffAccount?   @relation()
+  NGStaff       NGStaff[]       @relation("StaffProfileRelation")
+  ProjectMember ProjectMember[]
+  shiftRequests ShiftRequest[]
+  Attendance    Attendance[]
+}
+
+model EmergencyContact {
+  id              Int          @id @default(autoincrement())
+  nameOfEmergency String // 緊急連絡先の名前
+  relationship    String // 属柄
+  phoneNumber     String // 緊急連絡先の電話番号
+  staffProfile    StaffProfile @relation(fields: [staffProfileId], references: [id])
+  staffProfileId  Int
+}
+
+model NGStaff {
+  id             Int @id @default(autoincrement())
+  staffProfileId Int
+  ngStaffId      Int
+
+  staffProfile StaffProfile @relation("StaffProfileRelation", fields: [staffProfileId], references: [id])
+  ngStaff      StaffProfile @relation("NGStaffRelation", fields: [ngStaffId], references: [id])
+}
+
+model StaffQualification {
+  id              Int @id @default(autoincrement())
+  staffProfileId  Int
+  qualificationId Int
+
+  staffProfile  StaffProfile  @relation(fields: [staffProfileId], references: [id])
+  qualification Qualification @relation(fields: [qualificationId], references: [id])
+}
+
+model Qualification {
+  id                   Int                    @id @default(autoincrement())
+  qualificationName    String // 資格名
+  staffQualifications  StaffQualification[]
+  ProjectQualification ProjectQualification[]
+}
+
+model Company {
+  id          Int    @id @default(autoincrement())
+  companyName String
+  address     String
+  postcode    String
+  email       String
+  phonenumber String
+
+  projects Project[]
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  projectName String
+  companyId   Int
+  company     Company @relation(fields: [companyId], references: [id])
+
+  projectDescription ProjectDescription[]
+}
+
+model ProjectDescription {
+  id                   Int                    @id @default(autoincrement())
+  projectId            Int
+  workDate             DateTime
+  startTime            DateTime
+  endTime              DateTime
+  address              String
+  postcode             String
+  phonenumber          String
+  managerName          String
+  requiredMembers      Int
+  projectQualification ProjectQualification[]
+  unitPrice            Int
+  workTimeType         String
+  memo                 String
+
+  project       Project         @relation(fields: [projectId], references: [id])
+  ProjectMember ProjectMember[]
+  shiftRequests ShiftRequest[]
+}
+
+model ProjectQualification {
+  id                    Int @id @default(autoincrement())
+  projectDescriptionId  Int
+  qualificationId       Int
+  numberOfMembersNeeded Int // 新しいフィールドを追加
+
+  projectDescription ProjectDescription @relation(fields: [projectDescriptionId], references: [id])
+  qualification      Qualification      @relation(fields: [qualificationId], references: [id])
+}
+
+model ProjectMember {
+  id                   Int @id @default(autoincrement())
+  projectDescriptionId Int
+  staffProfileId       Int
+
+  projectDescription ProjectDescription @relation(fields: [projectDescriptionId], references: [id])
+  staffProfile       StaffProfile       @relation(fields: [staffProfileId], references: [id])
+  Attendance         Attendance[]
+}
+
+model Attendance {
+  id              Int      @id @default(autoincrement())
+  staffProfileId  Int
+  ProjectMemberId Int
+  clockIn         Boolean
+  clockOut        Boolean
+  clockInTime     DateTime
+  clockOutTime    DateTime
+  submitPaper     String
+
+  staffProfile  StaffProfile  @relation(fields: [staffProfileId], references: [id])
+  ProjectMember ProjectMember @relation(fields: [ProjectMemberId], references: [id])
+}
+
+enum RequestType {
+  SHIFT
+  LEAVE
+}
+
+model ShiftRequest {
+  id                   Int         @id @default(autoincrement())
+  staffProfileId       Int
+  date                 DateTime
+  requestType          RequestType
+  memo                 String?
+  projectDescriptionId Int?
+
+  staffProfile       StaffProfile        @relation(fields: [staffProfileId], references: [id])
+  projectDescription ProjectDescription? @relation(fields: [projectDescriptionId], references: [id])
+
+  @@index([staffProfileId])
+  @@index([projectDescriptionId])
+}
