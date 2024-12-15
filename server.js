@@ -26,8 +26,9 @@ app.use(authRoutes);
 app.use(shiftRoutes);
 app.use(userRoutes);
 // サーバーの起動
-app.listen(4000, () => {
-  console.log("サーバーがポート4000で稼働中...");
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log("サーバーがポート" + PORT + "で稼働中...");
 });
 
 // Prisma クライアントの切断処理
