@@ -3,52 +3,72 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../prismaClient");
 
-//初期登録エンドポイント
-
-// Create attendance record (check-in)
-router.post("/attendance", async (req, res) => {
+// check-in update only
+router.post("/attendance/checkin", async (req, res) => {
   try {
-    const {
-      staffProfileId,
-      ProjectMemberId,
-      clockIn,
-      clockOut,
-      clockInTime,
-      submitPaper,
-    } = req.body;
-    const attendance = await prisma.attendance.create({
-      data: {
+    const { staffProfileId, ProjectMemberId, checkInPlace } = req.body;
+
+    const existing = await prisma.attendance.findFirst({
+      where: {
         staffProfileId,
         ProjectMemberId,
-        clockIn,
-        clockOut,
-        clockInTime: new Date(clockInTime),
-        submitPaper,
+        clockOut: false, // 下番してない最新の出勤記録
       },
     });
-    res.status(201).json(attendance);
+
+    if (!existing) {
+      return res.status(404).json({ error: "Attendance record not found" });
+    }
+
+    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+
+    const attendance = await prisma.attendance.update({
+      where: { id: existing.id },
+      data: {
+        clockIn: true,
+        clockInTime: nowJST,
+        checkInPlace,
+      },
+    });
+
+    res.status(200).json(attendance);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to create attendance record" });
+    res.status(500).json({ error: "Failed to update check-in" });
   }
 });
 
-// Update attendance record (check-out)
-router.patch("/attendance/:id", async (req, res) => {
+router.patch("/attendance/checkout", async (req, res) => {
   try {
-    const { id } = req.params;
-    const { clockOut, clockOutTime } = req.body;
-    const attendance = await prisma.attendance.update({
-      where: { id: Number(id) },
-      data: {
-        clockOut,
-        clockOutTime: clockOutTime ? new Date(clockOutTime) : undefined,
+    const { staffProfileId, ProjectMemberId, checkOutPlace } = req.body;
+
+    const existing = await prisma.attendance.findFirst({
+      where: {
+        staffProfileId,
+        ProjectMemberId,
+        clockOut: false,
       },
     });
-    res.json(attendance);
+
+    if (!existing) {
+      return res.status(404).json({ error: "Attendance record not found" });
+    }
+
+    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+
+    const attendance = await prisma.attendance.update({
+      where: { id: existing.id },
+      data: {
+        clockOut: true,
+        clockOutTime: nowJST,
+        checkOutPlace,
+      },
+    });
+
+    res.status(200).json(attendance);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to update attendance record" });
+    res.status(500).json({ error: "Failed to update check-out" });
   }
 });
 

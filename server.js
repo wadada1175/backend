@@ -17,6 +17,7 @@ const authRoutes = require("./routes/auth");
 const shiftRoutes = require("./routes/shift");
 const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
+const attendanceRoutes = require("./routes/attendance");
 // ルートの使用
 app.use(memberRoutes);
 app.use(companyRoutes);
@@ -27,6 +28,7 @@ app.use(authRoutes);
 app.use(shiftRoutes);
 app.use(userRoutes);
 app.use(adminRoutes);
+app.use(attendanceRoutes);
 // サーバーの起動
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
