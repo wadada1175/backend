@@ -186,7 +186,8 @@ router.get("/projects", async (req, res) => {
                 qualification: true,
               },
             },
-            ProjectMember: { // フィールド名を正しく指定
+            ProjectMember: {
+              // フィールド名を正しく指定
               include: {
                 staffProfile: {
                   include: {
@@ -195,7 +196,7 @@ router.get("/projects", async (req, res) => {
                         qualification: true,
                       },
                     },
-                  }
+                  },
                 }, // 必要に応じてスタッフ情報も取得
               },
             },
@@ -460,18 +461,18 @@ router.post("/project/:projectId/member", async (req, res) => {
       .json({ message: "プロジェクトメンバーが正常に追加されました。" });
   } catch (error) {
     console.error("プロジェクトメンバーの追加中にエラーが発生しました:", error);
-    return res
-      .status(500)
-      .json({ message: "プロジェクトメンバーの追加中にエラーが発生しました。" });
+    return res.status(500).json({
+      message: "プロジェクトメンバーの追加中にエラーが発生しました。",
+    });
   }
 });
 
 // プロジェクトメンバーの更新エンドポイント
-router.post('/projectMembers/update', async (req, res) => {
+router.post("/projectMembers/update", async (req, res) => {
   const { updateProjectMembers } = req.body;
 
-  if (!updateProjectMembers || typeof updateProjectMembers !== 'object') {
-    return res.status(400).json({ message: '無効なデータ形式です。' });
+  if (!updateProjectMembers || typeof updateProjectMembers !== "object") {
+    return res.status(400).json({ message: "無効なデータ形式です。" });
   }
 
   const projectDescriptionIds = Object.keys(updateProjectMembers);
@@ -479,38 +480,87 @@ router.post('/projectMembers/update', async (req, res) => {
   try {
     await prisma.$transaction(async (prisma) => {
       for (const projectDescriptionId of projectDescriptionIds) {
-        const projectMembers = updateProjectMembers[projectDescriptionId];
-
+        const newMembers = updateProjectMembers[projectDescriptionId] || [];
         const pdId = parseInt(projectDescriptionId, 10);
 
-        // 既存の ProjectMember を削除
-        await prisma.projectMember.deleteMany({
+        const existingMembers = await prisma.projectMember.findMany({
           where: {
             projectDescriptionId: pdId,
           },
+          select: {
+            id: true,
+            staffProfileId: true,
+          },
         });
 
-        // 新しい ProjectMember を追加
-        if (projectMembers && projectMembers.length > 0) {
-          const createData = projectMembers.map((member) => ({
-            staffProfileId: member.staffProfileId,
-            projectDescriptionId: pdId,
-          }));
+        const existingMap = new Map(
+          existingMembers.map((m) => [m.staffProfileId, m.id])
+        );
 
-          await prisma.projectMember.createMany({
-            data: createData,
+        const newIds = new Set(newMembers.map((m) => m.staffProfileId));
+        const existingIds = new Set(
+          existingMembers.map((m) => m.staffProfileId)
+        );
+
+        const toAdd = [...newIds].filter((id) => !existingIds.has(id));
+        const toDelete = [...existingIds].filter((id) => !newIds.has(id));
+
+        // --- 削除処理 ---
+        if (toDelete.length > 0) {
+          const deleteProjectMemberIds = toDelete.map((id) =>
+            existingMap.get(id)
+          );
+
+          await prisma.attendance.deleteMany({
+            where: {
+              ProjectMemberId: { in: deleteProjectMemberIds },
+            },
+          });
+
+          await prisma.projectMember.deleteMany({
+            where: {
+              id: { in: deleteProjectMemberIds },
+            },
+          });
+        }
+
+        // --- 追加処理 ---
+        for (const member of newMembers) {
+          if (!toAdd.includes(member.staffProfileId)) continue;
+
+          const createdMember = await prisma.projectMember.create({
+            data: {
+              staffProfileId: member.staffProfileId,
+              projectDescriptionId: pdId,
+            },
+          });
+
+          await prisma.attendance.create({
+            data: {
+              staffProfileId: member.staffProfileId,
+              ProjectMemberId: createdMember.id,
+              clockIn: false,
+              clockOut: false,
+              clockInTime: new Date(0),
+              clockOutTime: new Date(0),
+              submitPaper: "",
+              checkInPlace: "",
+              checkOutPlace: "",
+            },
           });
         }
       }
     });
 
-    return res.status(200).json({ message: 'プロジェクトメンバーが更新されました。' });
+    return res
+      .status(200)
+      .json({
+        message: "差分のみプロジェクトメンバーと勤怠情報を更新しました。",
+      });
   } catch (error) {
-    console.error('プロジェクトメンバーの更新中にエラーが発生しました:', error);
-    return res.status(500).json({ message: 'プロジェクトメンバーの更新中にエラーが発生しました。' });
+    console.error("更新中にエラーが発生しました:", error);
+    return res.status(500).json({ message: "更新中にエラーが発生しました。" });
   }
 });
-
-
 
 module.exports = router;
