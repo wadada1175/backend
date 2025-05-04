@@ -477,6 +477,8 @@ router.post("/projectMembers/update", async (req, res) => {
 
   const projectDescriptionIds = Object.keys(updateProjectMembers);
 
+  const notifyShiftUpdated = require("../mail/shiftNotification");
+
   try {
     await prisma.$transaction(async (prisma) => {
       for (const projectDescriptionId of projectDescriptionIds) {
@@ -552,11 +554,24 @@ router.post("/projectMembers/update", async (req, res) => {
       }
     });
 
-    return res
-      .status(200)
-      .json({
-        message: "差分のみプロジェクトメンバーと勤怠情報を更新しました。",
-      });
+    // ❶ 影響を受けた staffProfileId を収集
+    const affectedIds = Object.values(updateProjectMembers)
+      .flat()
+      .map((m) => m.staffProfileId);
+    const uniqueIds = [...new Set(affectedIds)];
+
+    // ❷ メールアドレス取得
+    const profiles = await prisma.staffProfile.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { email: true, name: true },
+    });
+
+    // ❸ 並列送信
+    await Promise.all(profiles.map((p) => notifyShiftUpdated(p.email, p.name)));
+
+    return res.status(200).json({
+      message: "差分のみプロジェクトメンバーと勤怠情報を更新しました。",
+    });
   } catch (error) {
     console.error("更新中にエラーが発生しました:", error);
     return res.status(500).json({ message: "更新中にエラーが発生しました。" });
