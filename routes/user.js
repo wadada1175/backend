@@ -67,6 +67,20 @@ router.get("/assigned-shifts", authenticateToken, async (req, res) => {
         projectDescription: {
           include: {
             project: { select: { id: true, projectName: true } },
+            ProjectMember: {
+              // フィールド名を正しく指定
+              include: {
+                staffProfile: {
+                  include: {
+                    qualifications: {
+                      include: {
+                        qualification: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -74,6 +88,7 @@ router.get("/assigned-shifts", authenticateToken, async (req, res) => {
 
     const mappedAssignments = assignments.map((assignment) => ({
       projectMemberId: assignment.id,
+      staffProfileId: assignment.staffProfileId,
       projectDescriptionId: assignment.projectDescriptionId,
       workDate: assignment.projectDescription.workDate,
       startTime: assignment.projectDescription.startTime,
@@ -83,7 +98,12 @@ router.get("/assigned-shifts", authenticateToken, async (req, res) => {
       managerName: assignment.projectDescription.managerName,
       phonenumber: assignment.projectDescription.phonenumber,
       address: assignment.projectDescription.address,
+      staffName: assignment.projectDescription.ProjectMember.map(
+        (member) => member.staffProfile.name
+      ),
     }));
+
+    console.log("Mapped Assignments:", mappedAssignments);
 
     res.json(mappedAssignments);
   } catch (error) {
