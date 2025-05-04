@@ -114,6 +114,7 @@ router.get("/members", async (req, res) => {
             qualification: true,
           },
         },
+        shiftRequests: true, // シフトリクエストを含める
       },
     });
 
@@ -141,6 +142,14 @@ router.get("/members", async (req, res) => {
       ngStaffList: "なし", // 仮のデータ
       bannedInfo: "なし", // 仮のデータ
       selfBanned: "なし", // 仮のデータ
+      shiftRequests: member.shiftRequests.map((request) => ({
+        id: request.id,
+        staffProfileId: request.staffProfileId,
+        date: request.date,
+        requestType: request.requestType,
+        memo: request.memo,
+        projectDescriptionId: request.projectDescriptionId,
+      })),
     }));
 
     res.status(200).json(formattedMembers);
