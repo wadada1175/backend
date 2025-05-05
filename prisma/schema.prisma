@@ -150,6 +150,8 @@ model Attendance {
   clockInTime     DateTime
   clockOutTime    DateTime
   submitPaper     String
+  checkInPlace    String
+  checkOutPlace   String
 
   staffProfile  StaffProfile  @relation(fields: [staffProfileId], references: [id])
   ProjectMember ProjectMember @relation(fields: [ProjectMemberId], references: [id])
