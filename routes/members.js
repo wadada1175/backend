@@ -251,6 +251,38 @@ router.delete("/members/:id", async (req, res) => {
         },
       });
 
+      // NGStaff (自分がNG対象 or 他者にとってNG対象)
+      await prisma.nGStaff.deleteMany({
+        where: {
+          OR: [{ staffProfileId: parseInt(id) }, { ngStaffId: parseInt(id) }],
+        },
+      });
+
+      // 3. 関連する StaffQualification を削除
+      await prisma.staffQualification.deleteMany({
+        where: {
+          staffProfileId: parseInt(id),
+        },
+      });
+      // 4. 関連する ShiftRequest を削除
+      await prisma.shiftRequest.deleteMany({
+        where: {
+          staffProfileId: parseInt(id),
+        },
+      });
+      // 5. Attendance を先に削除する
+      await prisma.attendance.deleteMany({
+        where: {
+          staffProfileId: parseInt(id),
+        },
+      });
+
+      // 6. ProjectMember を削除する
+      await prisma.projectMember.deleteMany({
+        where: {
+          staffProfileId: parseInt(id),
+        },
+      });
       // 他の関連レコードの削除処理が必要であればここに追加
 
       // 最後に StaffProfile を削除
