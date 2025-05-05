@@ -282,6 +282,18 @@ router.delete(
           where: { projectDescriptionId: parseInt(projectDescriptionId, 10) },
         });
 
+        await prisma.attendance.deleteMany({
+          where: {
+            ProjectMember: {
+              projectDescriptionId: parseInt(projectDescriptionId, 10),
+            },
+          },
+        });
+
+        await prisma.projectMember.deleteMany({
+          where: { projectDescriptionId: parseInt(projectDescriptionId, 10) },
+        });
+
         await prisma.projectDescription.deleteMany({
           where: { projectId: parseInt(projectId, 10) },
         });
@@ -297,6 +309,19 @@ router.delete(
 
       // それ以外の場合はプロジェクト詳細のみを削除
       await prisma.projectQualification.deleteMany({
+        where: { projectDescriptionId: parseInt(projectDescriptionId, 10) },
+      });
+
+      // Attendance を先に削除
+      await prisma.attendance.deleteMany({
+        where: {
+          ProjectMember: {
+            projectDescriptionId: parseInt(projectDescriptionId, 10),
+          },
+        },
+      });
+
+      await prisma.projectMember.deleteMany({
         where: { projectDescriptionId: parseInt(projectDescriptionId, 10) },
       });
 
