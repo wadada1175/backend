@@ -132,7 +132,7 @@ router.get("/members", async (req, res) => {
       hiredate: member.hiredate,
       role: member.role,
       emergencyContacts: member.emergencyContact.map((contact) => ({
-        name: contact.nameOfEmergency,
+        nameOfEmergency: contact.nameOfEmergency,
         relationship: contact.relationship,
         phoneNumber: contact.phoneNumber,
       })),
