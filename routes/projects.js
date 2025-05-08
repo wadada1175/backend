@@ -3,6 +3,17 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../prismaClient");
 
+// --- UTC helper --------------------------------------------------
+const toIso = (d) => (d instanceof Date ? d.toISOString() : d);
+const normalizeDescriptions = (descs) =>
+  descs.map((pd) => ({
+    ...pd,
+    workDate: toIso(pd.workDate),
+    startTime: toIso(pd.startTime),
+    endTime: toIso(pd.endTime),
+  }));
+// -----------------------------------------------------------------
+
 // プロジェクト登録エンドポイント
 router.post("/registerProject", async (req, res) => {
   const {
@@ -55,8 +66,8 @@ router.post("/registerProject", async (req, res) => {
           projectDescription: {
             create: {
               workDate: new Date(workDate),
-              startTime: new Date(`${workDate}T${startTime}`),
-              endTime: new Date(`${workDate}T${endTime}`),
+              startTime: new Date(startTime),
+              endTime: new Date(endTime),
               address,
               postcode,
               phonenumber,
@@ -96,8 +107,8 @@ router.post("/registerProject", async (req, res) => {
           projectDescription: {
             create: {
               workDate: new Date(workDate),
-              startTime: new Date(`${workDate}T${startTime}`),
-              endTime: new Date(`${workDate}T${endTime}`),
+              startTime: new Date(startTime),
+              endTime: new Date(endTime),
               address,
               postcode,
               phonenumber,
@@ -205,7 +216,12 @@ router.get("/projects", async (req, res) => {
       },
     });
 
-    res.json(projects);
+    const normalized = projects.map((p) => ({
+      ...p,
+      projectDescription: normalizeDescriptions(p.projectDescription),
+    }));
+    return res.json(normalized);
+    // res.json(projects);
   } catch (error) {
     console.error("プロジェクト情報の取得中にエラーが発生しました:", error);
     res
@@ -246,7 +262,12 @@ router.get(
           .json({ message: "プロジェクト詳細が見つかりません。" });
       }
 
-      res.json(project);
+      const normalized = {
+        ...project,
+        projectDescription: normalizeDescriptions(project.projectDescription),
+      };
+      return res.json(normalized);
+      // res.json(project);
     } catch (error) {
       console.error("プロジェクト詳細の取得中にエラーが発生しました:", error);
       res
@@ -379,8 +400,8 @@ router.put(
         where: { id: parseInt(projectDescriptionId, 10) },
         data: {
           workDate: new Date(workDate),
-          startTime: new Date(`${workDate}T${startTime}`),
-          endTime: new Date(`${workDate}T${endTime}`),
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
           address,
           postcode,
           phonenumber,
