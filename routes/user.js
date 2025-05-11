@@ -103,7 +103,7 @@ router.get("/assigned-shifts", authenticateToken, async (req, res) => {
       ),
     }));
 
-    console.log("Mapped Assignments:", mappedAssignments);
+    // console.log("Mapped Assignments:", mappedAssignments);
 
     res.json(mappedAssignments);
   } catch (error) {
