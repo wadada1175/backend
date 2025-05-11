@@ -167,7 +167,7 @@ function authenticateToken(req, res, next) {
 // check-in update only
 router.post("/attendance/checkin", async (req, res) => {
   try {
-    const { staffProfileId, ProjectMemberId, checkInPlace } = req.body;
+    const { staffProfileId, ProjectMemberId, checkInPlace, clockInTime } = req.body;
 
     const existing = await prisma.attendance.findFirst({
       where: {
@@ -182,13 +182,12 @@ router.post("/attendance/checkin", async (req, res) => {
       return res.status(404).json({ error: "Attendance record not found" });
     }
 
-    const nowUTC = new Date();
 
     const attendance = await prisma.attendance.update({
       where: { id: existing.id },
       data: {
         clockIn: true,
-        clockInTime: nowUTC,
+        clockInTime,
         checkInPlace,
       },
     });
@@ -202,7 +201,7 @@ router.post("/attendance/checkin", async (req, res) => {
 
 router.patch("/attendance/checkout", async (req, res) => {
   try {
-    const { staffProfileId, ProjectMemberId, checkOutPlace } = req.body;
+    const { staffProfileId, ProjectMemberId, checkOutPlace, clockOutTime } = req.body;
 
     const existing = await prisma.attendance.findFirst({
       where: {
@@ -217,13 +216,11 @@ router.patch("/attendance/checkout", async (req, res) => {
       return res.status(404).json({ error: "Attendance record not found" });
     }
 
-    const nowUTC = new Date();
-
     const attendance = await prisma.attendance.update({
       where: { id: existing.id },
       data: {
         clockOut: true,
-        clockOutTime: nowUTC,
+        clockOutTime,
         checkOutPlace,
       },
     });
