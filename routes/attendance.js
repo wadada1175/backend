@@ -192,6 +192,8 @@ router.post("/attendance/checkin", async (req, res) => {
       },
     });
 
+    console.log('clockInTime:', clockInTime);
+
     res.status(200).json(attendance);
   } catch (error) {
     console.error(error);
@@ -224,6 +226,8 @@ router.patch("/attendance/checkout", async (req, res) => {
         checkOutPlace,
       },
     });
+
+    console.log('clockOutTime:', clockOutTime);
 
     res.status(200).json(attendance);
   } catch (error) {
