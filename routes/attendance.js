@@ -7,16 +7,46 @@ const jwt = require("jsonwebtoken");
 
 const SECRET_KEY = process.env.SECRET_KEY;
 
+// --- UTC helper --------------------------------------------------
+const toIso = (d) => (d instanceof Date ? d.toISOString() : d);
+const normalizeDescriptions = (descs) =>
+  descs.map((pd) => ({
+    ...pd,
+    workDate: toIso(pd.workDate),
+    startTime: toIso(pd.startTime),
+    endTime: toIso(pd.endTime),
+  }));
+
+// --- UTC helper for Attendance -----------------------------------
+const normalizeAttendances = (atts) =>
+  atts.map((a) => ({
+    ...a,
+    clockInTime: toIso(a.clockInTime),
+    clockOutTime: toIso(a.clockOutTime),
+    ProjectMember: a.ProjectMember
+      ? {
+          ...a.ProjectMember,
+          projectDescription: a.ProjectMember.projectDescription
+            ? {
+                ...a.ProjectMember.projectDescription,
+                ...normalizeDescriptions([a.ProjectMember.projectDescription])[0],
+              }
+            : undefined,
+        }
+      : undefined,
+  }));
+// -----------------------------------------------------------------
+
 // 日ごとの出勤記録を取得するエンドポイント
 router.get('/attendance/day', authenticateToken, async (req, res) => {
   try {
     const { date } = req.query;          // 例 "2025-07-21"
     if (!date) return res.status(400).json({ message: 'date が必要です' });
 
-    // 当日の 00:00 と 翌日 00:00 (JST) を作る
-    const startOfDay = new Date(`${date}T00:00:00+09:00`);
+    // 当日 00:00–翌日 00:00 (UTC) を作成
+    const startOfDay = new Date(`${date}T00:00:00Z`);
     const endOfDay   = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
+    endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
 
     const attendances = await prisma.attendance.findMany({
       where: {
@@ -35,7 +65,8 @@ router.get('/attendance/day', authenticateToken, async (req, res) => {
       orderBy: { staffProfileId: 'asc' }
     });
 
-    res.json(attendances);
+    const normalized = normalizeAttendances(attendances);
+    res.json(normalized);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'サーバーエラー' });
@@ -50,10 +81,10 @@ router.get('/attendance/week', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'start が必要です' });
     }
 
-    // JST で開始〜終了を作成
-    const startDate = new Date(`${start}T00:00:00+09:00`);
+    // UTC で週の開始〜終了を作成
+    const startDate = new Date(`${start}T00:00:00Z`);
     const endDate   = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 7);
+    endDate.setUTCDate(endDate.getUTCDate() + 7);
 
     // 週内すべての勤怠を取得
     const attendances = await prisma.attendance.findMany({
@@ -73,7 +104,8 @@ router.get('/attendance/week', authenticateToken, async (req, res) => {
       orderBy: [{ staffProfileId: 'asc' }, { clockInTime: 'asc' }]
     });
 
-    res.json(attendances);
+    const normalized = normalizeAttendances(attendances);
+    res.json(normalized);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'サーバーエラー' });
@@ -88,10 +120,10 @@ router.get('/attendance/month', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'year と month が必要です' });
     }
 
-    // JST で対象月の開始と翌月開始を算出
-    const startDate = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00+09:00`);
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + 1);
+    // UTC で対象月の開始と翌月開始を算出
+    const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const endDate   = new Date(startDate);
+    endDate.setUTCMonth(endDate.getUTCMonth() + 1);
 
     // 月内の勤怠を取得
     const attendances = await prisma.attendance.findMany({
@@ -109,7 +141,8 @@ router.get('/attendance/month', authenticateToken, async (req, res) => {
       orderBy: [{ staffProfileId: 'asc' }, { clockInTime: 'asc' }]
     });
 
-    res.json(attendances);
+    const normalized = normalizeAttendances(attendances);
+    res.json(normalized);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'サーバーエラー' });
@@ -149,13 +182,13 @@ router.post("/attendance/checkin", async (req, res) => {
       return res.status(404).json({ error: "Attendance record not found" });
     }
 
-    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const nowUTC = new Date();
 
     const attendance = await prisma.attendance.update({
       where: { id: existing.id },
       data: {
         clockIn: true,
-        clockInTime: nowJST,
+        clockInTime: nowUTC,
         checkInPlace,
       },
     });
@@ -184,13 +217,13 @@ router.patch("/attendance/checkout", async (req, res) => {
       return res.status(404).json({ error: "Attendance record not found" });
     }
 
-    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const nowUTC = new Date();
 
     const attendance = await prisma.attendance.update({
       where: { id: existing.id },
       data: {
         clockOut: true,
-        clockOutTime: nowJST,
+        clockOutTime: nowUTC,
         checkOutPlace,
       },
     });
@@ -223,7 +256,8 @@ router.get("/attendances", authenticateToken, async (req, res) => {
       where: { staffProfileId: profile.id },
     });
 
-    res.json(attendances);
+    const normalized = normalizeAttendances(attendances);
+    res.json(normalized);
     console.log("出勤記録:", attendances);
   } catch (err) {
     console.error("サーバーエラー:", err);
