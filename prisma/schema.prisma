@@ -142,13 +142,13 @@ model ProjectMember {
 }
 
 model Attendance {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   staffProfileId  Int
   ProjectMemberId Int
   clockIn         Boolean
   clockOut        Boolean
-  clockInTime     DateTime
-  clockOutTime    DateTime
+  clockInTime     DateTime?
+  clockOutTime    DateTime?
   submitPaper     String
   checkInPlace    String
   checkOutPlace   String
